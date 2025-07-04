@@ -123,6 +123,7 @@ export interface Translation {
     introduction: string;
     examination: string;
     prayers: string;
+    bible: string;
     preparation: string;
     welcomeTitle: string;
     welcomeText: string;
@@ -446,6 +447,7 @@ export const translations: Record<Language, Translation> = {
       introduction: "Introduction",
       examination: "Examination",
       prayers: "Prayers",
+      bible: "Bible",
       preparation: "Preparation",
       welcomeTitle: "Welcome to Confession Preparation",
       welcomeText:
@@ -781,6 +783,7 @@ export const translations: Record<Language, Translation> = {
       introduction: "Introducción",
       examination: "Examen",
       prayers: "Oraciones",
+      bible: "Biblia",
       preparation: "Preparación",
       welcomeTitle: "Bienvenido a la Preparación para la Confesión",
       welcomeText:
@@ -1221,7 +1224,6 @@ export const translations: Record<Language, Translation> = {
       learnAboutMission: "Apprendre Notre Mission",
       home: "Accueil",
       prayers: "Prières",
-      bible: "Bible",
       meditations: "Méditations",
       saints: "Saints",
     },
@@ -1559,7 +1561,6 @@ export const translations: Record<Language, Translation> = {
       learnAboutMission: "Scopri la Nostra Missione",
       home: "Casa",
       prayers: "Preghiere",
-      bible: "Bibbia",
       meditations: "Meditazioni",
       saints: "Santi",
     },
@@ -1893,7 +1894,6 @@ export const translations: Record<Language, Translation> = {
       learnAboutMission: "Conhecer Nossa Missão",
       home: "Início",
       prayers: "Orações",
-      bible: "Bíblia",
       meditations: "Meditações",
       saints: "Santos",
     },
@@ -2224,7 +2224,6 @@ export const translations: Record<Language, Translation> = {
       learnAboutMission: "Disce de Missione Nostra",
       home: "Domus",
       prayers: "Orationes",
-      bible: "Biblia",
       meditations: "Meditationes",
       saints: "Sancti",
     },
