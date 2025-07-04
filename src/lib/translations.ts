@@ -5,6 +5,7 @@ export interface Translation {
   nav: {
     home: string;
     prayers: string;
+    bible: string;
     divineOffice: string;
     meditations: string;
     saints: string;
@@ -317,6 +318,7 @@ export const translations: Record<Language, Translation> = {
     nav: {
       home: "Home",
       prayers: "Prayers",
+      bible: "Bible",
       divineOffice: "Divine Office",
       meditations: "Meditations",
       saints: "Saints",
@@ -650,6 +652,7 @@ export const translations: Record<Language, Translation> = {
     nav: {
       home: "Inicio",
       prayers: "Oraciones",
+      bible: "Biblia",
       divineOffice: "Oficio Divino",
       meditations: "Meditaciones",
       saints: "Santos",
@@ -983,6 +986,7 @@ export const translations: Record<Language, Translation> = {
     nav: {
       home: "Accueil",
       prayers: "Prières",
+      bible: "Bible",
       divineOffice: "Office Divin",
       meditations: "Méditations",
       saints: "Saints",
@@ -1111,6 +1115,7 @@ export const translations: Record<Language, Translation> = {
       introduction: "Introduction",
       examination: "Examen",
       prayers: "Prières",
+      bible: "Bible",
       preparation: "Préparation",
       welcomeTitle: "Bienvenue à la Préparation à la Confession",
       welcomeText:
@@ -1216,6 +1221,7 @@ export const translations: Record<Language, Translation> = {
       learnAboutMission: "Apprendre Notre Mission",
       home: "Accueil",
       prayers: "Prières",
+      bible: "Bible",
       meditations: "Méditations",
       saints: "Saints",
     },
@@ -1320,6 +1326,7 @@ export const translations: Record<Language, Translation> = {
     nav: {
       home: "Home",
       prayers: "Preghiere",
+      bible: "Bibbia",
       divineOffice: "Ufficio Divino",
       meditations: "Meditazioni",
       saints: "Santi",
@@ -1447,6 +1454,7 @@ export const translations: Record<Language, Translation> = {
       introduction: "Introduzione",
       examination: "Esame",
       prayers: "Preghiere",
+      bible: "Bibbia",
       preparation: "Preparazione",
       welcomeTitle: "Benvenuto alla Preparazione alla Confessione",
       welcomeText:
@@ -1551,6 +1559,7 @@ export const translations: Record<Language, Translation> = {
       learnAboutMission: "Scopri la Nostra Missione",
       home: "Casa",
       prayers: "Preghiere",
+      bible: "Bibbia",
       meditations: "Meditazioni",
       saints: "Santi",
     },
@@ -1654,6 +1663,7 @@ export const translations: Record<Language, Translation> = {
     nav: {
       home: "Início",
       prayers: "Orações",
+      bible: "Bíblia",
       divineOffice: "Ofício Divino",
       meditations: "Meditações",
       saints: "Santos",
@@ -1782,6 +1792,7 @@ export const translations: Record<Language, Translation> = {
       introduction: "Introdução",
       examination: "Exame",
       prayers: "Orações",
+      bible: "Bíblia",
       preparation: "Preparação",
       welcomeTitle: "Bem-vindo à Preparação para a Confissão",
       welcomeText:
@@ -1882,6 +1893,7 @@ export const translations: Record<Language, Translation> = {
       learnAboutMission: "Conhecer Nossa Missão",
       home: "Início",
       prayers: "Orações",
+      bible: "Bíblia",
       meditations: "Meditações",
       saints: "Santos",
     },
@@ -1984,6 +1996,7 @@ export const translations: Record<Language, Translation> = {
     nav: {
       home: "Domus",
       prayers: "Orationes",
+      bible: "Biblia",
       divineOffice: "Officium Divinum",
       meditations: "Meditationes",
       saints: "Sancti",
@@ -2112,6 +2125,7 @@ export const translations: Record<Language, Translation> = {
       introduction: "Introductio",
       examination: "Examen",
       prayers: "Orationes",
+      bible: "Biblia",
       preparation: "Praeparatio",
       welcomeTitle: "Salve ad Praeparationem Confessionis",
       welcomeText:
@@ -2210,6 +2224,7 @@ export const translations: Record<Language, Translation> = {
       learnAboutMission: "Disce de Missione Nostra",
       home: "Domus",
       prayers: "Orationes",
+      bible: "Biblia",
       meditations: "Meditationes",
       saints: "Sancti",
     },

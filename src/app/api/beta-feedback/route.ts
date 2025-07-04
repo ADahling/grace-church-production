@@ -38,14 +38,9 @@ export async function POST(request: NextRequest) {
         {
           name: feedback.name,
           email: feedback.email,
-          cell_phone: feedback.cellPhone,
-          feedback_type: feedback.feedbackType || 'general',
-          rating: feedback.rating,
-          message: feedback.message,
-          current_page: feedback.currentPage,
-          user_agent: feedback.userAgent,
-          follow_up_requested: feedback.followUpRequested || false,
-          priority: feedback.priority || 'medium',
+          phone: feedback.cellPhone || null,
+          feedback: feedback.message || feedback.feedback || '',
+          rating: feedback.rating || null,
           created_at: new Date().toISOString(),
         },
       ])
@@ -91,17 +86,21 @@ export async function GET(request: NextRequest) {
       // Get feedback statistics
       const { data: feedbackData, error } = await supabase
         .from('beta_feedback')
-        .select('rating, feedback_type, created_at');
+        .select('rating, created_at');
 
       if (error) {
         throw error;
       }
 
       const totalFeedback = feedbackData.length;
-      const averageRating = feedbackData.reduce((sum, item) => sum + item.rating, 0) / totalFeedback;
+      const averageRating = feedbackData.reduce((sum, item) => sum + (item.rating || 0), 0) / totalFeedback;
       
-      const feedbackByType = feedbackData.reduce((acc, item) => {
-        acc[item.feedback_type] = (acc[item.feedback_type] || 0) + 1;
+      // Simple feedback categorization based on rating
+      const feedbackByRating = feedbackData.reduce((acc, item) => {
+        const rating = item.rating || 0;
+        if (rating >= 4) acc.positive = (acc.positive || 0) + 1;
+        else if (rating >= 3) acc.neutral = (acc.neutral || 0) + 1;
+        else acc.negative = (acc.negative || 0) + 1;
         return acc;
       }, {} as Record<string, number>);
 
@@ -115,8 +114,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         {
           totalFeedback,
-          averageRating: Math.round(averageRating * 100) / 100,
-          feedbackByType,
+          averageRating: isNaN(averageRating) ? 0 : averageRating,
+          feedbackByRating,
           recentFeedback: recentFeedback || [],
         },
         { headers: corsHeaders }

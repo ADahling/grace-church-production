@@ -1,78 +1,72 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
-import { Play, Pause, Square, Volume2, VolumeX, Settings } from "lucide-react";
-import { useLanguage } from "@/context/LanguageContext";
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { Play, Pause, Volume2, VolumeX, RotateCcw } from 'lucide-react';
 
 interface AudioPrayerPlayerProps {
   text: string;
+  language?: string;
   title?: string;
   className?: string;
 }
 
 interface VoiceOption {
   voice: SpeechSynthesisVoice;
-  label: string;
+  name: string;
   language: string;
 }
 
-export default function AudioPrayerPlayer({ 
+export function AudioPrayerPlayer({ 
   text, 
-  title = "Prayer Audio", 
-  className = "" 
+  language = 'en', 
+  title = 'Prayer Audio',
+  className = '' 
 }: AudioPrayerPlayerProps) {
-  const { language } = useLanguage();
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [rate, setRate] = useState(1.0);
-  const [pitch, setPitch] = useState(1.0);
-  const [volume, setVolume] = useState(0.8);
-  const [showSettings, setShowSettings] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [availableVoices, setAvailableVoices] = useState<VoiceOption[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
-  const [progress, setProgress] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
+  const [volume, setVolume] = useState(1);
   
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Language mapping for voice selection
-  const languageMap: Record<string, string[]> = {
-    en: ['en-US', 'en-GB', 'en'],
-    es: ['es-ES', 'es-MX', 'es-US', 'es'],
-    fr: ['fr-FR', 'fr-CA', 'fr'],
-    it: ['it-IT', 'it'],
-    pt: ['pt-BR', 'pt-PT', 'pt'],
-    la: ['la', 'en-US'] // Fallback to English for Latin
-  };
+  // Memoize languageMap to prevent useEffect dependency issues
+  const languageMap = useMemo(() => ({
+    'en': ['en-US', 'en-GB', 'en-AU', 'en-CA'],
+    'es': ['es-ES', 'es-MX', 'es-AR', 'es-CO'],
+    'fr': ['fr-FR', 'fr-CA'],
+    'it': ['it-IT'],
+    'pt': ['pt-BR', 'pt-PT'],
+    'la': ['la'] // Latin (may not be available)
+  }), []);
 
   // Load available voices
   useEffect(() => {
     const loadVoices = () => {
       const voices = speechSynthesis.getVoices();
-      const currentLangCodes = languageMap[language] || ['en-US'];
+      const targetLanguages = languageMap[language as keyof typeof languageMap] || ['en-US'];
       
       const filteredVoices: VoiceOption[] = voices
-        .filter(voice => 
-          currentLangCodes.some(code => 
-            voice.lang.toLowerCase().startsWith(code.toLowerCase())
-          )
-        )
+        .filter(voice => targetLanguages.some(lang => voice.lang.startsWith(lang.split('-')[0])))
         .map(voice => ({
           voice,
-          label: `${voice.name} (${voice.lang})`,
+          name: voice.name,
           language: voice.lang
         }));
 
-      // If no voices found for current language, fallback to English
       if (filteredVoices.length === 0) {
+        // Fallback to English voices if target language not available
         const englishVoices = voices
-          .filter(voice => voice.lang.toLowerCase().startsWith('en'))
+          .filter(voice => voice.lang.startsWith('en'))
           .map(voice => ({
             voice,
-            label: `${voice.name} (${voice.lang})`,
+            name: voice.name,
             language: voice.lang
           }));
+        
         setAvailableVoices(englishVoices);
         setSelectedVoice(englishVoices[0]?.voice || null);
       } else {
@@ -87,7 +81,7 @@ export default function AudioPrayerPlayer({
     return () => {
       speechSynthesis.removeEventListener('voiceschanged', loadVoices);
     };
-  }, [language]);
+  }, [language, languageMap]);
 
   // Clean up on unmount
   useEffect(() => {
@@ -101,20 +95,15 @@ export default function AudioPrayerPlayer({
     };
   }, []);
 
-  const startProgressTracking = () => {
+  const startProgressTracking = (utterance: SpeechSynthesisUtterance) => {
     const words = text.split(' ');
-    const totalWords = words.length;
-    let currentWord = 0;
-
+    let currentWordIndex = 0;
+    
     progressIntervalRef.current = setInterval(() => {
-      if (speechSynthesis.speaking && !speechSynthesis.paused) {
-        currentWord += 1;
-        const progressPercent = Math.min((currentWord / totalWords) * 100, 100);
+      if (currentWordIndex < words.length) {
+        const progressPercent = (currentWordIndex / words.length) * 100;
         setProgress(progressPercent);
-        
-        if (currentWord >= totalWords) {
-          clearInterval(progressIntervalRef.current!);
-        }
+        currentWordIndex++;
       }
     }, 200); // Update every 200ms
   };
@@ -127,32 +116,31 @@ export default function AudioPrayerPlayer({
   };
 
   const handlePlay = () => {
-    if (isPaused) {
+    if (isPaused && utteranceRef.current) {
       speechSynthesis.resume();
       setIsPaused(false);
       setIsPlaying(true);
-      startProgressTracking();
+      return;
+    }
+
+    if (!selectedVoice) {
+      console.warn('No voice selected for audio playback');
       return;
     }
 
     // Cancel any existing speech
     speechSynthesis.cancel();
-    
-    // Create new utterance
+
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = rate;
-    utterance.pitch = pitch;
+    utterance.voice = selectedVoice;
+    utterance.rate = 0.9; // Slightly slower for prayer
+    utterance.pitch = 1;
     utterance.volume = isMuted ? 0 : volume;
-    
-    if (selectedVoice) {
-      utterance.voice = selectedVoice;
-    }
 
     utterance.onstart = () => {
       setIsPlaying(true);
       setIsPaused(false);
-      setProgress(0);
-      startProgressTracking();
+      startProgressTracking(utterance);
     };
 
     utterance.onend = () => {
@@ -162,11 +150,21 @@ export default function AudioPrayerPlayer({
       stopProgressTracking();
     };
 
-    utterance.onerror = () => {
+    utterance.onerror = (event) => {
+      console.error('Speech synthesis error:', event);
       setIsPlaying(false);
       setIsPaused(false);
-      setProgress(0);
       stopProgressTracking();
+    };
+
+    utterance.onpause = () => {
+      setIsPaused(true);
+      setIsPlaying(false);
+    };
+
+    utterance.onresume = () => {
+      setIsPaused(false);
+      setIsPlaying(true);
     };
 
     utteranceRef.current = utterance;
@@ -174,10 +172,12 @@ export default function AudioPrayerPlayer({
   };
 
   const handlePause = () => {
-    speechSynthesis.pause();
-    setIsPaused(true);
-    setIsPlaying(false);
-    stopProgressTracking();
+    if (isPlaying) {
+      speechSynthesis.pause();
+      setIsPaused(true);
+      setIsPlaying(false);
+      stopProgressTracking();
+    }
   };
 
   const handleStop = () => {
@@ -188,6 +188,13 @@ export default function AudioPrayerPlayer({
     stopProgressTracking();
   };
 
+  const handleRestart = () => {
+    handleStop();
+    setTimeout(() => {
+      handlePlay();
+    }, 100);
+  };
+
   const toggleMute = () => {
     setIsMuted(!isMuted);
     if (utteranceRef.current) {
@@ -195,163 +202,120 @@ export default function AudioPrayerPlayer({
     }
   };
 
-  const getPlayButtonText = () => {
-    if (isPlaying) return "Playing...";
-    if (isPaused) return "Resume";
-    return "Play Prayer";
+  const handleVolumeChange = (newVolume: number) => {
+    setVolume(newVolume);
+    if (utteranceRef.current && !isMuted) {
+      utteranceRef.current.volume = newVolume;
+    }
   };
 
   return (
-    <div className={`bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-6 border border-purple-100 ${className}`}>
+    <div className={`bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-900 rounded-xl p-6 border border-blue-100 dark:border-gray-700 ${className}`}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Volume2 className="w-5 h-5 text-purple-600" />
-          <h3 className="font-semibold text-gray-800">{title}</h3>
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+          <Volume2 className="w-5 h-5 text-white" />
         </div>
-        <button
-          onClick={() => setShowSettings(!showSettings)}
-          className="p-2 rounded-full hover:bg-white/50 transition-colors"
-          title="Audio Settings"
-        >
-          <Settings className="w-4 h-4 text-gray-600" />
-        </button>
+        <div>
+          <h3 className="font-semibold text-gray-900 dark:text-white">{title}</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            {selectedVoice ? selectedVoice.name : 'Loading voices...'}
+          </p>
+        </div>
       </div>
 
       {/* Progress Bar */}
       <div className="mb-4">
-        <div className="w-full bg-gray-200 rounded-full h-2">
+        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
           <div 
-            className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all duration-300"
+            className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
             style={{ width: `${progress}%` }}
           />
         </div>
-        <div className="text-xs text-gray-500 mt-1 text-center">
-          {Math.round(progress)}% complete
+        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <span>Prayer Audio</span>
+          <span>{Math.round(progress)}%</span>
         </div>
       </div>
 
-      {/* Main Controls */}
-      <div className="flex items-center justify-center gap-4 mb-4">
+      {/* Controls */}
+      <div className="flex items-center gap-3 mb-4">
+        {/* Play/Pause Button */}
         <button
           onClick={isPlaying ? handlePause : handlePlay}
-          disabled={!text.trim()}
-          className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-full hover:from-purple-700 hover:to-blue-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+          disabled={!selectedVoice}
+          className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 rounded-full flex items-center justify-center text-white transition-all duration-200 shadow-lg hover:shadow-xl"
         >
           {isPlaying ? (
             <Pause className="w-5 h-5" />
           ) : (
-            <Play className="w-5 h-5" />
-          )}
-          <span className="font-medium">{getPlayButtonText()}</span>
-        </button>
-
-        <button
-          onClick={handleStop}
-          disabled={!isPlaying && !isPaused}
-          className="flex items-center gap-2 bg-gray-600 text-white px-4 py-3 rounded-full hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Square className="w-4 h-4" />
-          <span>Stop</span>
-        </button>
-
-        <button
-          onClick={toggleMute}
-          className="p-3 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
-          title={isMuted ? "Unmute" : "Mute"}
-        >
-          {isMuted ? (
-            <VolumeX className="w-5 h-5 text-gray-600" />
-          ) : (
-            <Volume2 className="w-5 h-5 text-gray-600" />
+            <Play className="w-5 h-5 ml-0.5" />
           )}
         </button>
+
+        {/* Restart Button */}
+        <button
+          onClick={handleRestart}
+          disabled={!selectedVoice}
+          className="w-10 h-10 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 disabled:bg-gray-50 disabled:dark:bg-gray-800 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-300 transition-all duration-200"
+        >
+          <RotateCcw className="w-4 h-4" />
+        </button>
+
+        {/* Volume Controls */}
+        <div className="flex items-center gap-2 ml-auto">
+          <button
+            onClick={toggleMute}
+            className="w-8 h-8 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-300 transition-all duration-200"
+          >
+            {isMuted ? (
+              <VolumeX className="w-4 h-4" />
+            ) : (
+              <Volume2 className="w-4 h-4" />
+            )}
+          </button>
+          
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.1"
+            value={isMuted ? 0 : volume}
+            onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+            className="w-16 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
+          />
+        </div>
       </div>
 
-      {/* Settings Panel */}
-      {showSettings && (
-        <div className="bg-white rounded-lg p-4 border border-gray-200 space-y-4">
-          <h4 className="font-semibold text-gray-800 mb-3">Audio Settings</h4>
-          
-          {/* Voice Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Voice
-            </label>
-            <select
-              value={selectedVoice?.name || ''}
-              onChange={(e) => {
-                const voice = availableVoices.find(v => v.voice.name === e.target.value)?.voice;
-                setSelectedVoice(voice || null);
-              }}
-              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            >
-              {availableVoices.map((voiceOption) => (
-                <option key={voiceOption.voice.name} value={voiceOption.voice.name}>
-                  {voiceOption.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Speed Control */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Speed: {rate.toFixed(1)}x
-            </label>
-            <input
-              type="range"
-              min="0.5"
-              max="2.0"
-              step="0.1"
-              value={rate}
-              onChange={(e) => setRate(parseFloat(e.target.value))}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-            />
-          </div>
-
-          {/* Volume Control */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Volume: {Math.round(volume * 100)}%
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.1"
-              value={volume}
-              onChange={(e) => setVolume(parseFloat(e.target.value))}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-            />
-          </div>
-
-          {/* Pitch Control */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Pitch: {pitch.toFixed(1)}
-            </label>
-            <input
-              type="range"
-              min="0.5"
-              max="2.0"
-              step="0.1"
-              value={pitch}
-              onChange={(e) => setPitch(parseFloat(e.target.value))}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-            />
-          </div>
+      {/* Voice Selection */}
+      {availableVoices.length > 1 && (
+        <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Voice Selection
+          </label>
+          <select
+            value={selectedVoice?.name || ''}
+            onChange={(e) => {
+              const voice = availableVoices.find(v => v.voice.name === e.target.value)?.voice;
+              setSelectedVoice(voice || null);
+            }}
+            className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            {availableVoices.map((voiceOption) => (
+              <option key={voiceOption.voice.name} value={voiceOption.voice.name}>
+                {voiceOption.name} ({voiceOption.language})
+              </option>
+            ))}
+          </select>
         </div>
       )}
 
-      {/* Browser Support Note */}
-      {typeof window !== 'undefined' && !window.speechSynthesis && (
-        <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <p className="text-sm text-yellow-800">
-            Audio playback is not supported in your browser. Please try a modern browser like Chrome, Firefox, or Safari.
-          </p>
-        </div>
-      )}
+      {/* Text Preview */}
+      <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+        <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed max-h-24 overflow-y-auto">
+          {text.length > 150 ? `${text.substring(0, 150)}...` : text}
+        </p>
+      </div>
     </div>
   );
 }

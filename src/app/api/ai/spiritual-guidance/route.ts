@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fallbackSpiritualAPI } from '../../../../lib/fallback-apis';
-import { FALLBACK_SPIRITUAL_GUIDANCE } from '../../../../lib/fallback-data';
 
 // Rate limiting (simple in-memory store)
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
@@ -18,7 +17,6 @@ function checkRateLimit(key: string): { allowed: boolean; remaining: number } {
   const record = rateLimitStore.get(key);
 
   if (!record || now > record.resetTime) {
-    // Reset or create new record
     rateLimitStore.set(key, {
       count: 1,
       resetTime: now + RATE_LIMIT_WINDOW,
@@ -34,6 +32,34 @@ function checkRateLimit(key: string): { allowed: boolean; remaining: number } {
   return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - record.count };
 }
 
+// Spiritual fallback responses for when all APIs fail
+const SPIRITUAL_FALLBACKS = [
+  {
+    response: "Peace be with you, dear child. In times of uncertainty, remember that God's love surrounds you always. Take a moment to breathe deeply and feel His presence in your heart.",
+    guidance: {
+      type: "comfort",
+      prayer: "Lord, grant me peace in this moment of need. Help me to trust in Your divine plan and find comfort in Your eternal love. Amen.",
+      scripture: "Cast all your anxiety on him because he cares for you. - 1 Peter 5:7"
+    }
+  },
+  {
+    response: "God sees your struggles and walks with you through every challenge. You are never alone in your spiritual journey. Trust in His timing and His perfect plan for your life.",
+    guidance: {
+      type: "encouragement",
+      prayer: "Heavenly Father, strengthen my faith and help me to see Your hand at work in my life. Give me patience and trust in Your divine will. Amen.",
+      scripture: "For I know the plans I have for you, declares the Lord, plans to prosper you and not to harm you, to give you hope and a future. - Jeremiah 29:11"
+    }
+  },
+  {
+    response: "In moments of spiritual dryness, remember that even the saints experienced times of darkness. This is part of your spiritual growth. Continue to pray, even when it feels difficult.",
+    guidance: {
+      type: "spiritual_growth",
+      prayer: "Jesus, help me to persevere in prayer even when I cannot feel Your presence. Increase my faith and draw me closer to Your Sacred Heart. Amen.",
+      scripture: "Be still and know that I am God. - Psalm 46:10"
+    }
+  }
+];
+
 export async function POST(request: NextRequest) {
   try {
     // Rate limiting
@@ -48,140 +74,152 @@ export async function POST(request: NextRequest) {
           timestamp: new Date().toISOString(),
           guidance: {
             type: 'rate_limit',
-            context: 'spiritual_patience',
-            tone: 'gentle',
-          },
-          retryAfter: 60,
+            prayer: 'Lord, grant me patience and help me to slow down in Your presence. Amen.',
+            scripture: 'Be still and know that I am God. - Psalm 46:10'
+          }
         },
         { 
-          status: 200, // Return 200 for better UX
+          status: 429,
           headers: {
             'Content-Type': 'application/json',
-            'X-RateLimit-Remaining': '0',
-            'X-RateLimit-Reset': String(Math.ceil(Date.now() / 1000) + 60),
-            'Retry-After': '60',
+            'X-RateLimit-Remaining': rateLimit.remaining.toString(),
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-          },
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+          }
         }
       );
     }
 
     // Parse request body
-    const body = await request.json();
-    const { message } = body;
-
-    if (!message || typeof message !== 'string') {
+    let body;
+    try {
+      body = await request.json();
+    } catch (error) {
       return NextResponse.json(
         {
-          response: 'Peace be with you. Please share what\'s on your heart, and I\'ll do my best to help.',
-          source: 'validation',
+          response: 'I apologize, but I had trouble understanding your message. Please try rephrasing your spiritual question, and I will do my best to help you.',
+          source: 'input_error',
           timestamp: new Date().toISOString(),
           guidance: {
-            type: 'welcome',
-            context: 'spiritual_invitation',
-            tone: 'welcoming',
-          },
+            type: 'clarification',
+            prayer: 'Holy Spirit, guide our communication and help us understand each other. Amen.',
+            scripture: 'Let your speech always be gracious, seasoned with salt. - Colossians 4:6'
+          }
         },
         { 
-          status: 200,
+          status: 400,
           headers: {
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-          },
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+          }
         }
       );
     }
 
-    // Validate message length
-    if (message.length > 1000) {
+    const { message, context } = body;
+
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
       return NextResponse.json(
         {
-          response: 'Dear child, your message is quite long. Please share your thoughts in smaller portions so I can give you my full attention.',
-          source: 'validation',
+          response: 'Please share what is on your heart, dear child. I am here to listen and offer spiritual guidance.',
+          source: 'validation_error',
           timestamp: new Date().toISOString(),
           guidance: {
-            type: 'message_length',
-            context: 'spiritual_guidance',
-            tone: 'gentle',
-          },
+            type: 'invitation',
+            prayer: 'Lord, open my heart to share my thoughts and feelings with You. Amen.',
+            scripture: 'Come to me, all you who are weary and burdened, and I will give you rest. - Matthew 11:28'
+          }
         },
         { 
-          status: 200,
+          status: 400,
           headers: {
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-          },
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+          }
         }
       );
     }
 
-    // Get spiritual guidance using comprehensive fallback system
-    const spiritualResponse = await fallbackSpiritualAPI.getSpiritualGuidance(message);
+    // Try the fallback API system
+    try {
+      const response = await fallbackSpiritualAPI(message, context);
+      
+      return NextResponse.json(
+        {
+          response: response.response,
+          source: response.source,
+          timestamp: new Date().toISOString(),
+          guidance: response.guidance || {
+            type: 'general',
+            prayer: 'Lord, bless this conversation and guide us in Your truth. Amen.',
+            scripture: 'Your word is a lamp for my feet, a light on my path. - Psalm 119:105'
+          }
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-RateLimit-Remaining': rateLimit.remaining.toString(),
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+          }
+        }
+      );
+    } catch (apiError) {
+      console.error('Fallback API error:', apiError);
+      
+      // Final fallback to pre-written spiritual responses
+      const fallbackResponse = SPIRITUAL_FALLBACKS[
+        Math.floor(Math.random() * SPIRITUAL_FALLBACKS.length)
+      ];
 
-    // Enhanced response with spiritual context and saint recommendations
-    const enhancedResponse = {
-      response: spiritualResponse.message,
-      source: spiritualResponse.source,
-      timestamp: spiritualResponse.timestamp.toISOString(),
-      guidance: {
-        type: 'spiritual_support',
-        context: 'catholic_tradition',
-        tone: 'compassionate',
-      },
-      saintRecommendations: getSaintRecommendations(message),
-      scriptureReferences: getScriptureReferences(message),
-      liturgicalSeason: getCurrentLiturgicalSeason(),
-      saintOfTheDay: getSaintOfTheDay(),
-    };
-
-    return NextResponse.json(enhancedResponse, {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-RateLimit-Remaining': String(rateLimit.remaining),
-        'X-Spiritual-Source': spiritualResponse.source,
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      },
-    });
+      return NextResponse.json(
+        {
+          response: fallbackResponse.response,
+          source: 'spiritual_fallback',
+          timestamp: new Date().toISOString(),
+          guidance: fallbackResponse.guidance
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-RateLimit-Remaining': rateLimit.remaining.toString(),
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+          }
+        }
+      );
+    }
 
   } catch (error) {
-    console.error('Sister Grace API Error:', error);
-
-    // Graceful error with spiritual comfort
-    const fallbackMessage = FALLBACK_SPIRITUAL_GUIDANCE.guidance;
-
+    console.error('Sister Grace API error:', error);
+    
+    // Emergency spiritual response
     return NextResponse.json(
       {
-        response: fallbackMessage,
-        source: 'fallback',
+        response: 'My dear child, I am experiencing some technical difficulties, but please know that God is always with you. In times of trouble, turn to prayer and trust in His infinite love and mercy.',
+        source: 'emergency_fallback',
         timestamp: new Date().toISOString(),
         guidance: {
-          type: 'spiritual_comfort',
-          context: 'error_recovery',
-          tone: 'peaceful',
-        },
-        saintRecommendations: ['St. Thérèse of Lisieux (the Little Way)', 'St. Joseph (patron of families)'],
-        scriptureReferences: ['Psalm 46:10 - "Be still and know that I am God"'],
-        liturgicalSeason: getCurrentLiturgicalSeason(),
-        saintOfTheDay: getSaintOfTheDay(),
+          type: 'emergency',
+          prayer: 'Lord Jesus, in this moment of technical difficulty, I trust in Your presence. Help me to remember that You are always near, even when technology fails. Amen.',
+          scripture: 'The Lord your God is with you, the Mighty Warrior who saves. - Zephaniah 3:17'
+        }
       },
       { 
-        status: 200, // Return 200 to avoid frontend errors
+        status: 500,
         headers: {
           'Content-Type': 'application/json',
-          'X-Spiritual-Source': 'fallback',
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        },
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+        }
       }
     );
   }
@@ -197,122 +235,5 @@ export async function OPTIONS(request: NextRequest) {
       'Access-Control-Max-Age': '86400',
     },
   });
-}
-
-// Health check endpoint
-export async function GET(request: NextRequest) {
-  try {
-    const apiStatus = fallbackSpiritualAPI.getAPIStatus();
-    const healthCheck = await fallbackSpiritualAPI.checkAPIHealth();
-
-    return NextResponse.json({
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      apis: {
-        configured: apiStatus.configured,
-        available: apiStatus.available,
-        health: healthCheck,
-      },
-      message: 'Sister Grace is ready to provide spiritual guidance with multiple AI backends',
-      fallbackChain: ['OpenAI GPT-4', 'Hugging Face', 'Google Gemini', 'Pre-written Responses'],
-    });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        status: 'degraded',
-        timestamp: new Date().toISOString(),
-        message: 'Sister Grace is experiencing some difficulties but fallback guidance is available',
-        error: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 503 }
-    );
-  }
-}
-
-// Helper functions for enhanced spiritual context
-function getSaintRecommendations(message: string): string[] {
-  const lowerMessage = message.toLowerCase();
-  
-  if (lowerMessage.includes('anxious') || lowerMessage.includes('worry') || lowerMessage.includes('stress')) {
-    return ['St. Dymphna (patron of anxiety)', 'St. Padre Pio (comfort in suffering)'];
-  }
-  
-  if (lowerMessage.includes('prayer') || lowerMessage.includes('pray')) {
-    return ['St. Teresa of Avila (mystical prayer)', 'St. Thérèse of Lisieux (simple prayer)'];
-  }
-  
-  if (lowerMessage.includes('work') || lowerMessage.includes('job')) {
-    return ['St. Joseph the Worker', 'St. Thomas More (integrity in work)'];
-  }
-  
-  if (lowerMessage.includes('family') || lowerMessage.includes('marriage')) {
-    return ['St. Joseph (protector of families)', 'Sts. Louis and Zelie Martin (holy marriage)'];
-  }
-  
-  if (lowerMessage.includes('healing') || lowerMessage.includes('sick')) {
-    return ['St. Raphael the Archangel (divine healer)', 'Our Lady of Lourdes (miraculous healing)'];
-  }
-  
-  // Default recommendations
-  return ['St. Thérèse of Lisieux (the Little Way)', 'St. Joseph (patron of families)'];
-}
-
-function getScriptureReferences(message: string): string[] {
-  const lowerMessage = message.toLowerCase();
-  
-  if (lowerMessage.includes('peace') || lowerMessage.includes('calm')) {
-    return ['John 14:27 - "Peace I leave with you"', 'Philippians 4:6-7 - "Do not be anxious"'];
-  }
-  
-  if (lowerMessage.includes('strength') || lowerMessage.includes('courage')) {
-    return ['Joshua 1:9 - "Be strong and courageous"', 'Philippians 4:13 - "I can do all things through Christ"'];
-  }
-  
-  if (lowerMessage.includes('fear') || lowerMessage.includes('afraid')) {
-    return ['Isaiah 41:10 - "Fear not, for I am with you"', '1 John 4:18 - "Perfect love drives out fear"'];
-  }
-  
-  if (lowerMessage.includes('forgiveness') || lowerMessage.includes('sin')) {
-    return ['1 John 1:9 - "If we confess our sins"', 'Psalm 51:10 - "Create in me a pure heart"'];
-  }
-  
-  if (lowerMessage.includes('love')) {
-    return ['1 John 4:19 - "We love because he first loved us"', 'Romans 8:38-39 - "Nothing can separate us from God\'s love"'];
-  }
-  
-  // Default references
-  return ['Psalm 23:1 - "The Lord is my shepherd"', 'Matthew 11:28 - "Come to me, all who are weary"'];
-}
-
-function getCurrentLiturgicalSeason(): string {
-  const now = new Date();
-  const month = now.getMonth() + 1; // JavaScript months are 0-indexed
-  const day = now.getDate();
-  
-  // Simple liturgical season calculation
-  if ((month === 12 && day >= 1) || (month === 1 && day <= 6)) {
-    return 'Advent/Christmas';
-  } else if (month >= 2 && month <= 4) {
-    return 'Lent/Easter';
-  } else if (month >= 5 && month <= 6) {
-    return 'Easter Season';
-  } else {
-    return 'Ordinary Time';
-  }
-}
-
-function getSaintOfTheDay(): { name: string; description: string } {
-  const saints = [
-    { name: 'St. Thérèse of Lisieux', description: 'The Little Flower, patron of missions' },
-    { name: 'St. Joseph', description: 'Foster father of Jesus, patron of workers' },
-    { name: 'St. Francis of Assisi', description: 'Patron of animals and ecology' },
-    { name: 'St. Teresa of Avila', description: 'Mystic and Doctor of the Church' },
-    { name: 'St. John Vianney', description: 'The Curé of Ars, patron of priests' },
-    { name: 'St. Padre Pio', description: 'Mystic with the stigmata' },
-    { name: 'St. Faustina', description: 'Apostle of Divine Mercy' },
-  ];
-  
-  const today = new Date().getDate();
-  return saints[today % saints.length];
 }
 

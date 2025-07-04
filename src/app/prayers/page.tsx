@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 import { useState } from "react";
 import { AudioPlayer } from "../../components/AudioPlayer";
-import AudioPrayerPlayer from "../../components/AudioPrayerPlayer";
+import { AudioPrayerPlayer } from "../../components/AudioPrayerPlayer";
 import { Header } from "../../components/Header";
 import { SisterGraceButton } from "../../components/SisterGraceChatbot";
 import { useTranslation } from "../../context/LanguageContext";

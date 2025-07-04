@@ -9,6 +9,36 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      beta_feedback: {
+        Row: {
+          id: string
+          name: string
+          email: string
+          phone: string | null
+          feedback: string
+          rating: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          email: string
+          phone?: string | null
+          feedback: string
+          rating?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          email?: string
+          phone?: string | null
+          feedback?: string
+          rating?: number | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       community_groups: {
         Row: {
           category: string | null
